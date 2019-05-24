@@ -15,7 +15,7 @@ public class Main {
             System.out.println(engine.toString());
         } else {
             Engine engine = new Engine();
-            engine.interactWithKeyboard();
+            engine.start();
         }
     }
 }

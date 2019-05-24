@@ -1,13 +1,14 @@
 package labyrinth.Core;
 
+import edu.princeton.cs.introcs.StdDraw;
 import labyrinth.TileEngine.TERenderer;
 import labyrinth.TileEngine.TETile;
 import labyrinth.TileEngine.Tileset;
-import edu.princeton.cs.introcs.StdDraw;
 
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.Random;
+
 
 public class Engine {
 
@@ -23,24 +24,21 @@ public class Engine {
     private Random RANDOM;  // seed is provided by user
     private int filled = 0; // approximate number of grids filled with wall or floor
     private ArrayList<Room> rooms = new ArrayList<>();
-    private int playerX, playerY; // coordinate of the player
-    private int health;
+    private Player player;
+    private Enemy enemy;
 
     public Engine() {
         infoRenderer.initialize(WIDTH, HEIGHT + INFO_HEIGHT, 0, HEIGHT);
         worldRenderer.initialize(WIDTH, HEIGHT + INFO_HEIGHT);
     }
 
-    public void interactWithKeyboard() {
-
+    public void start() {
         showMenu();
 
         // build the labyrinth
         while(true) {
             if(StdDraw.hasNextKeyTyped()) {
-
                 char ch = StdDraw.nextKeyTyped();
-
                 // new labyrinth
                 if (ch == 'N' || ch == 'n') {
                     long seed = getSeedFromInput();
@@ -55,7 +53,14 @@ public class Engine {
             }
         }
 
-        // already built the labyrinth. starts to play.
+        interactWithKeyboard();
+    }
+
+    public void interactWithKeyboard() {
+
+        // already built the labyrinth.
+        // starts to play.
+        long initialTime = System.nanoTime();
         while (true) {
             // show what the mouse is pointing at
             int mouseX = (int)StdDraw.mouseX();
@@ -66,18 +71,24 @@ public class Engine {
                 infoRenderer.renderFrame(info);
             }
 
+            long currentTime = System.nanoTime();
+            if(currentTime - initialTime > 500000000) {
+                // render every 0.5s
+                render();
+            }
             // press <W> <A> <S> <D> to move
             if(StdDraw.hasNextKeyTyped()) {
                 char ch = StdDraw.nextKeyTyped();
                 switch (ch) {
-                    case 'w': case 'W': goUp(); break;
-                    case 'a': case 'A': goLeft(); break;
-                    case 's': case 'S': goDown(); break;
-                    case 'd': case 'D': goRight(); break;
+                    case 'w': case 'W': player.move(Direction.UP); break;
+                    case 'a': case 'A': player.move(Direction.LEFT); break;
+                    case 's': case 'S': player.move(Direction.DOWN); break;
+                    case 'd': case 'D': player.move(Direction.RIGHT); break;
                 }
             }
         }
     }
+
     public TETile[][] interactWithInputString(String input) {
         long seed = 0;
         for (int i = 1; i < input.length() - 1; ++i)
@@ -92,7 +103,6 @@ public class Engine {
         world  = new TETile[WIDTH][HEIGHT];
         info   = new TETile[WIDTH][INFO_HEIGHT];
         RANDOM = new Random(seed);
-        health = INITIAL_HEALTH;
 
         for (int i = 0; i < WIDTH; ++i)
             for (int j = 0; j < HEIGHT; j++)
@@ -101,22 +111,40 @@ public class Engine {
             for (int j = 0; j < INFO_HEIGHT; j++)
                 info[i][j] = Tileset.SPACE;
 
-        // write info at top info area and render
-        writeInfo(2, 1, 5, "YOU:@");
-        writeInfo(9, 1, 12, "HEALTH:" + health);
-        infoRenderer.renderFrame(info);
-
         // generate the world and render
         generateRooms();
         generateHallways();
         generateLockedDoor();
         generatePlayer();
         generateEnemy();
+        render();
+
+        Thread t = new Thread(enemy);
+        t.start();
+    }
+
+    private void render() {
         worldRenderer.renderFrame(world);
+
+        writeInfo(2, 1, 5, "YOU:@");
+        writeInfo(9, 1, 12, "HEALTH:" + player.health);
+        infoRenderer.renderFrame(info);
     }
 
     private void generateEnemy() {
-        world[50][20] = Tileset.ENEMY;
+        int x, y;
+
+        while (true) {
+            x = RANDOM.nextInt(WIDTH * 2 /3);
+            y = RANDOM.nextInt(HEIGHT);
+            int count = 0;
+            while (world[x][y] != Tileset.FLOOR) {
+                y = (y + 1) % HEIGHT;
+                if (++count > 6) break; // change x
+            }
+            if (world[x][y] == Tileset.FLOOR) break;
+        }
+        enemy = new Enemy(world, 6,18, Tileset.ENEMY, player);
     }
 
     private void generatePlayer() {
@@ -133,9 +161,7 @@ public class Engine {
             }
             if (world[x][y] == Tileset.FLOOR) break;
         }
-        world[x][y] = Tileset.AVATAR;
-        playerX = x;
-        playerY = y;
+        player = new Player(world, x, y, INITIAL_HEALTH, Tileset.AVATAR);
     }
     private void generateLockedDoor() {
         int x, y;
@@ -256,35 +282,6 @@ public class Engine {
         }
     }
 
-    // player movement
-    private void goUp() {
-        if(world[playerX][playerY + 1] != Tileset.WALL) {
-            world[playerX][playerY] = Tileset.FLOOR;
-            world[playerX][++playerY] = Tileset.AVATAR;
-        }
-        worldRenderer.renderFrame(world);
-    }
-    private void goDown() {
-        if(world[playerX][playerY - 1] != Tileset.WALL) {
-            world[playerX][playerY] = Tileset.FLOOR;
-            world[playerX][--playerY] = Tileset.AVATAR;
-        }
-        worldRenderer.renderFrame(world);
-    }
-    private void goLeft() {
-        if(world[playerX - 1][playerY] != Tileset.WALL) {
-            world[playerX][playerY] = Tileset.FLOOR;
-            world[--playerX][playerY] = Tileset.AVATAR;
-        }
-        worldRenderer.renderFrame(world);
-    }
-    private void goRight() {
-        if(world[playerX + 1][playerY] != Tileset.WALL) {
-            world[playerX][playerY] = Tileset.FLOOR;
-            world[++playerX][playerY] = Tileset.AVATAR;
-        }
-        worldRenderer.renderFrame(world);
-    }
 
     // helper methods
     private void showMenu() {
@@ -311,7 +308,7 @@ public class Engine {
             else if (ch == ':')
                 info[x++][y] = Tileset.COLON;
             else if (ch == '@')
-                info[x++][y] = Tileset.AVATAR;
+                info[x++][y] = player.image;
         }
 
         // fill the rest with SPACE
