@@ -91,6 +91,7 @@ public class Enemy extends Role implements Runnable {
             for (Direction d : Direction.values()) {
                 int newX = nowState.x + X[d.getIndex()];
                 int newY = nowState.y + Y[d.getIndex()];
+                System.out.println(newX+" "+newY);
                 if (!visited[newX][newY] && world[newX][newY] != Tileset.WALL) {
                     visited[newX][newY] = true;
                     State nextState = new State(newX, newY);
@@ -112,5 +113,4 @@ public class Enemy extends Role implements Runnable {
         }
         return solution;
     }
-
 }

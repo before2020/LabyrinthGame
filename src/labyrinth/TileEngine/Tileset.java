@@ -17,9 +17,9 @@ import java.awt.*;
  */
 
 public class Tileset {
-    public static final TETile AVATAR = new TETile('I', Color.cyan, Color.black, "YOU");
+    public static final TETile AVATAR = new TETile('I', Color.cyan, Color.black, "YOU", "icons/avatar1.png");
     public static final TETile WALL = new TETile('#', new Color(184, 163, 22), new Color(83, 83, 83),
-            "WALL");
+            "WALL", "icons/wall.png");
     public static final TETile FLOOR = new TETile('·', new Color(182, 142, 85), Color.black,
             "FLOOR");
     public static final TETile NOTHING = new TETile(' ', Color.black, Color.black, "NOTHING");
@@ -27,13 +27,15 @@ public class Tileset {
     public static final TETile WATER = new TETile('≈', Color.blue, Color.black, "WATER");
     public static final TETile FLOWER = new TETile('❀', Color.magenta, Color.pink, "FLOWER");
     public static final TETile LOCKED_DOOR = new TETile('█', Color.orange, Color.black,
-            "LOCKED DOOR");
+            "LOCKED DOOR", "icons/locked_door.png");
     public static final TETile UNLOCKED_DOOR = new TETile('▢', Color.orange, Color.black,
             "UNLOCKED DOOR");
     public static final TETile SAND = new TETile('▒', Color.yellow, Color.black, "SAND");
     public static final TETile MOUNTAIN = new TETile('▲', Color.gray, Color.black, "MOUNTAIN");
     public static final TETile TREE = new TETile('♠', Color.green, Color.black, "TREE");
     public static final TETile ENEMY = new TETile('E', Color.red, Color.black, "ENEMY");
+    public static final TETile KEY = new TETile('?', Color.red, Color.black, "KEY", "icons/key.png");
+
     public static final TETile COLON = new TETile(':', Color.white, Color.black, "COLON");
     public static final TETile SPACE = new TETile(' ', Color.white, Color.black, "SPACE");
 

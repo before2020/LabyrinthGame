@@ -99,6 +99,7 @@ public class Engine {
 
     private void generateWorld(long seed) {
 
+        System.out.println("seed: " + seed);
         // initialize
         world  = new TETile[WIDTH][HEIGHT];
         info   = new TETile[WIDTH][INFO_HEIGHT];
@@ -117,10 +118,17 @@ public class Engine {
         generateLockedDoor();
         generatePlayer();
         generateEnemy();
+        generateKeys();
         render();
 
         Thread t = new Thread(enemy);
         t.start();
+    }
+
+    private void generateKeys() {
+        for (int i = 0; i < 3; i++) {
+            world[20+i*5][10] = Tileset.KEY;
+        }
     }
 
     private void render() {
@@ -144,7 +152,7 @@ public class Engine {
             }
             if (world[x][y] == Tileset.FLOOR) break;
         }
-        enemy = new Enemy(world, 6,18, Tileset.ENEMY, player);
+        enemy = new Enemy(world, x,y, Tileset.ENEMY, player);
     }
 
     private void generatePlayer() {
