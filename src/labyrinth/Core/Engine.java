@@ -6,6 +6,7 @@ import labyrinth.TileEngine.TETile;
 import labyrinth.TileEngine.Tileset;
 
 import java.awt.*;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.Random;
 
@@ -26,6 +27,8 @@ public class Engine {
     private ArrayList<Room> rooms = new ArrayList<>();
     private Player player;
     private Enemy enemy;
+    private Thread enemyThread;
+    private boolean running = true;
 
     public Engine() {
         infoRenderer.initialize(WIDTH, HEIGHT + INFO_HEIGHT, 0, HEIGHT);
@@ -33,7 +36,8 @@ public class Engine {
     }
 
     public void start() {
-        showMenu();
+
+        showStartMenu();
 
         // build the labyrinth
         while(true) {
@@ -43,61 +47,55 @@ public class Engine {
                 if (ch == 'N' || ch == 'n') {
                     long seed = getSeedFromInput();
                     StdDraw.setFont(new Font("Menlo", Font.BOLD, 16));
-                    generateWorld(seed);
+                    newGame(seed);
                     break;
                 }
                 else if (ch == 'L' || ch == 'l') {
-                    // loadGame();
+                    loadGame();
                     break;
+                }
+                else if (ch == 'Q' || ch == 'q') {
+                    return;
                 }
             }
         }
 
         interactWithKeyboard();
+        start();
     }
+    private void loadGame() {
+        WorldForSave wfs;
+        try {
+            FileInputStream fileIn = new FileInputStream("/tmp/worldForSave.ser");
+            ObjectInputStream in = new ObjectInputStream(fileIn);
+            wfs = (WorldForSave) in.readObject();
+            in.close();
+            fileIn.close();
+        } catch(IOException i) {
+            i.printStackTrace();
+            return;
+        } catch(ClassNotFoundException c) {
+            System.out.println("WorldForSave class not found");
+            c.printStackTrace();
+            return;
+        }
+        if(wfs != null) {
+            world = wfs.world;
+            info = wfs.info;
+            RANDOM = wfs.RANDOM;
+            player = wfs.player;
+            enemy = wfs.enemy;
 
-    public void interactWithKeyboard() {
+            // turn TETile object in world to Tileset.XXX
+            for (int i = 0; i < world.length; i++)
+                for (int j = 0; j < world[0].length; j++)
+                    world[i][j] = Tileset.get(world[i][j].description());
 
-        // already built the labyrinth.
-        // starts to play.
-        long initialTime = System.nanoTime();
-        while (true) {
-            // show what the mouse is pointing at
-            int mouseX = (int)StdDraw.mouseX();
-            int mouseY = (int)StdDraw.mouseY();
-            if(mouseX >= 0 && mouseX < WIDTH && mouseY >= 0 && mouseY < HEIGHT) {
-                String pointAt = world[mouseX][mouseY].description();
-                writeInfo(WIDTH - 12, 1, 12, pointAt.equals("NOTHING") ? "" : pointAt);
-                infoRenderer.renderFrame(info);
-            }
-
-            long currentTime = System.nanoTime();
-            if(currentTime - initialTime > 500000000) {
-                // render every 0.5s
-                render();
-            }
-            // press <W> <A> <S> <D> to move
-            if(StdDraw.hasNextKeyTyped()) {
-                char ch = StdDraw.nextKeyTyped();
-                switch (ch) {
-                    case 'w': case 'W': player.move(Direction.UP); break;
-                    case 'a': case 'A': player.move(Direction.LEFT); break;
-                    case 's': case 'S': player.move(Direction.DOWN); break;
-                    case 'd': case 'D': player.move(Direction.RIGHT); break;
-                }
-            }
+            enemyThread = new Thread(enemy);
+            enemyThread.start();
         }
     }
-
-    public TETile[][] interactWithInputString(String input) {
-        long seed = 0;
-        for (int i = 1; i < input.length() - 1; ++i)
-            seed = seed * 10 + input.charAt(i) - '0';
-        generateWorld(seed);
-        return world;
-    }
-
-    private void generateWorld(long seed) {
+    private void newGame(long seed) {
 
         System.out.println("seed: " + seed);
         // initialize
@@ -121,9 +119,112 @@ public class Engine {
         generateKeys();
         render();
 
-        Thread t = new Thread(enemy);
-        t.start();
+        enemyThread = new Thread(enemy);
+        enemyThread.start();
     }
+
+    public void interactWithKeyboard() {
+
+        // already built the labyrinth.
+        // starts to play.
+        long initialTime = System.nanoTime();
+        long currentTime;
+        running = true;
+        while (running) {
+            // show what the mouse is pointing at
+            int mouseX = (int)StdDraw.mouseX();
+            int mouseY = (int)StdDraw.mouseY();
+            if(mouseX >= 0 && mouseX < WIDTH && mouseY >= 0 && mouseY < HEIGHT) {
+                String pointAt = world[mouseX][mouseY].description();
+                writeInfo(WIDTH / 2, 1, 12, pointAt.equals("NOTHING") ? "" : pointAt, Color.yellow);
+            }
+
+            // 60 FPS
+            currentTime = System.nanoTime();
+            if(currentTime - initialTime > 16666666) {
+                render();
+                initialTime = currentTime;
+            }
+
+            // press <W> <A> <S> <D> to move
+            if(StdDraw.hasNextKeyTyped()) {
+                char ch = StdDraw.nextKeyTyped();
+                switch (ch) {
+                    case 'w': case 'W': player.move(Direction.UP); break;
+                    case 'a': case 'A': player.move(Direction.LEFT); break;
+                    case 's': case 'S': player.move(Direction.DOWN); break;
+                    case 'd': case 'D': player.move(Direction.RIGHT); break;
+                    case 27 : handleSaveAndQuit(); break;   // ESC pressed
+                }
+            }
+        }
+    }
+
+    private void handleSaveAndQuit() {
+        // pause enemy thread
+        enemy.pause();
+        showMiddleMenu();
+        while(true) {
+            if (StdDraw.hasNextKeyTyped()) {
+                char ch = StdDraw.nextKeyTyped();
+                switch (ch) {
+                    case 's': case 'S':
+                        saveGame();
+                        synchronized (enemy) {
+                            enemy.notifyAll();
+                        }
+                        return;
+                    case 'q': case 'Q':
+                        // save game and quit to main menu
+                        saveGame();
+                        synchronized (enemy) {
+                            enemy.notifyAll();
+                        }
+                        running = false;
+                        System.out.println(Thread.activeCount());
+                        // stop enemy thread
+                        try {
+                            enemy.stop();
+                            enemyThread.join();
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                        return;
+                    case 27:
+                        synchronized (enemy) {
+                            enemy.notifyAll();
+                        }
+                        return;
+            }
+            }
+        }
+    }
+
+    private void saveGame() {
+        try
+        {
+            FileOutputStream fileOut =
+                    new FileOutputStream("/tmp/worldForSave.ser");
+            ObjectOutputStream out = new ObjectOutputStream(fileOut);
+            WorldForSave wfs = new WorldForSave(world, info, RANDOM, player, enemy);
+            out.writeObject(wfs);
+            out.close();
+            fileOut.close();
+            System.out.printf("Serialized data is saved in /tmp/worldForSave.ser");
+        }catch(IOException i)
+        {
+            i.printStackTrace();
+        }
+    }
+
+    public TETile[][] interactWithInputString(String input) {
+        long seed = 0;
+        for (int i = 1; i < input.length() - 1; ++i)
+            seed = seed * 10 + input.charAt(i) - '0';
+        newGame(seed);
+        return world;
+    }
+
 
     private void generateKeys() {
         for (int i = 0; i < 3; i++) {
@@ -134,8 +235,11 @@ public class Engine {
     private void render() {
         worldRenderer.renderFrame(world);
 
-        writeInfo(2, 1, 5, "YOU:@");
-        writeInfo(9, 1, 12, "HEALTH:" + player.health);
+        writeInfo(2, 1, 5, "YOU:@", Color.white);
+        writeInfo(9, 1, 7, "HEALTH:", Color.white);
+        writeInfo(16, 1, 5, "" + player.health, Color.pink);
+        writeInfo(WIDTH - 12, 1, 9, "MENU(ESC)", Color.white);
+
         infoRenderer.renderFrame(info);
     }
 
@@ -175,7 +279,7 @@ public class Engine {
         int x, y;
         while (true) {
             // make sure the locked door is near right edge
-            x = WIDTH - 1 - RANDOM.nextInt(WIDTH / 10);
+            x = WIDTH - 3 - RANDOM.nextInt(WIDTH / 10);
             y = RANDOM.nextInt(HEIGHT);
             int count = 0;
             while (world[x][y] != Tileset.WALL) {
@@ -194,7 +298,7 @@ public class Engine {
         world[x][y] = Tileset.LOCKED_DOOR;
     }
     private void generateRooms() {
-        int leastTotalArea = (int) (WIDTH * HEIGHT * 0.4);
+        int leastTotalArea = (int) (WIDTH * HEIGHT * 0.3);
         int maxRoomArea = (int) (WIDTH * HEIGHT * 0.15);
         int count = 0;
         while (filled < leastTotalArea) {
@@ -290,11 +394,10 @@ public class Engine {
         }
     }
 
-
     // helper methods
-    private void showMenu() {
+    private void showStartMenu() {
         StdDraw.setPenColor(StdDraw.WHITE);
-        StdDraw.setFont(new Font("Menlo", Font.PLAIN, 20));
+        //StdDraw.setFont(new Font("Menlo", Font.PLAIN, 20));
         StdDraw.clear(StdDraw.BLACK);
 
         StdDraw.text(WIDTH * 0.5, HEIGHT * 0.7, "LABYRINTH");
@@ -303,20 +406,22 @@ public class Engine {
         StdDraw.text(WIDTH * 0.5, HEIGHT * 0.4, "QUIT      --- Press Q");
         StdDraw.show();
     }
-    private void writeInfo(int x, int y, int totalLength, String s) {
+    private void showMiddleMenu() {
+        StdDraw.setPenColor(StdDraw.WHITE);
+        //StdDraw.setFont(new Font("Menlo", Font.PLAIN, 20));
+        StdDraw.clear(StdDraw.BLACK);
+        StdDraw.text(WIDTH * 0.5, HEIGHT * 0.7, "LABYRINTH");
+
+        StdDraw.text(WIDTH * 0.5, HEIGHT * 0.6, "SAVE   --- Press S");
+        StdDraw.text(WIDTH * 0.5, HEIGHT * 0.5, "QUIT   --- Press Q");
+        StdDraw.text(WIDTH * 0.5, HEIGHT * 0.4, "CANCEL --- Press ESC");
+        StdDraw.show();
+    }
+    private void writeInfo(int x, int y, int totalLength, String s, Color textColor) {
 
         for (int i = 0; i < s.length(); ++i) {
             char ch = s.charAt(i);
-            if (ch >= 'A' && ch <= 'Z')
-                info[x++][y] = Tileset.LETTERS[ch - 'A'];
-            else if (ch >= '0' && ch <= '9')
-                info[x++][y] = Tileset.NUMBERS[ch - '0'];
-            else if (ch == ' ')
-                info[x++][y] = Tileset.SPACE;
-            else if (ch == ':')
-                info[x++][y] = Tileset.COLON;
-            else if (ch == '@')
-                info[x++][y] = player.image;
+            info[x++][y] = ch == '@' ? player.image : new TETile(Tileset.get(ch + ""), textColor);
         }
 
         // fill the rest with SPACE
@@ -397,11 +502,6 @@ public class Engine {
             x++;
         }
         return new int[]{endX - startX, endY - startY};
-    }
-
-    public static void main(String[] args) {
-        Engine engine = new Engine();
-        engine.interactWithInputString("N63456572S");
     }
 }
 

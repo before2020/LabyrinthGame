@@ -16,6 +16,15 @@ public class Main {
         } else {
             Engine engine = new Engine();
             engine.start();
+
+            ThreadGroup currentGroup =
+                    Thread.currentThread().getThreadGroup();
+            int noThreads = currentGroup.activeCount();
+            Thread[] lstThreads = new Thread[noThreads];
+            currentGroup.enumerate(lstThreads);
+            for (int i = 0; i < noThreads; i++)
+                System.out.println("线程号：" + i + " = " + lstThreads[i].getName());
+            System.exit(0);
         }
     }
 }

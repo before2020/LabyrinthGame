@@ -1,6 +1,7 @@
 package labyrinth.TileEngine;
 
 import java.awt.*;
+import java.util.HashMap;
 
 /**
  * Contains constant tile objects, to avoid having to remake the same tiles in different parts of
@@ -17,7 +18,9 @@ import java.awt.*;
  */
 
 public class Tileset {
-    public static final TETile AVATAR = new TETile('I', Color.cyan, Color.black, "YOU", "icons/avatar1.png");
+    private static final HashMap<String, TETile> map = new HashMap<>();
+
+    public static final TETile AVATAR = new TETile('I', Color.cyan, Color.black, "AVATAR", "icons/avatar1.png");
     public static final TETile WALL = new TETile('#', new Color(184, 163, 22), new Color(83, 83, 83),
             "WALL", "icons/wall.png");
     public static final TETile FLOOR = new TETile('·', new Color(182, 142, 85), Color.black,
@@ -36,9 +39,10 @@ public class Tileset {
     public static final TETile ENEMY = new TETile('E', Color.red, Color.black, "ENEMY");
     public static final TETile KEY = new TETile('?', Color.red, Color.black, "KEY", "icons/key.png");
 
-    public static final TETile COLON = new TETile(':', Color.white, Color.black, "COLON");
-    public static final TETile SPACE = new TETile(' ', Color.white, Color.black, "SPACE");
-
+    public static final TETile COLON = new TETile(':', Color.white, Color.black, ":");
+    public static final TETile SPACE = new TETile(' ', Color.white, Color.black, "(");
+    public static final TETile LEFT_BRACE = new TETile('(', Color.white, Color.black, ")");
+    public static final TETile RIGHT_BRACE = new TETile(')', Color.white, Color.black, " ");
     public static final TETile[] NUMBERS = new TETile[10];
     public static final TETile[] LETTERS = new TETile[26];
 
@@ -46,11 +50,36 @@ public class Tileset {
         char[] numberArray = "0123456789".toCharArray();
         char[] letterArray = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".toCharArray();
         for (int i = 0; i < NUMBERS.length; i++) {
-            NUMBERS[i] = new TETile(numberArray[i], Color.white, Color.black, "" + i);
+            NUMBERS[i] = new TETile(numberArray[i], Color.cyan, Color.black, "" + i);
+            map.put("" + i, NUMBERS[i]);
         }
         for (int i = 0; i < LETTERS.length; i++) {
-            LETTERS[i] = new TETile(letterArray[i], Color.yellow, Color.black, letterArray[i] + "");
+            LETTERS[i] = new TETile(letterArray[i], Color.white, Color.black, letterArray[i] + "");
+            map.put("" + letterArray[i], LETTERS[i]);
         }
+        map.put("AVATAR", AVATAR);
+        map.put("WALL", WALL);
+        map.put("FLOOR", FLOOR);
+        map.put("NOTHING", NOTHING);
+        map.put("FLOWER", FLOWER);
+        map.put("GRASS", GRASS);
+        map.put("WATER", WATER);
+        map.put("LOCKED DOOR", LOCKED_DOOR);
+        map.put("UNLOCKED DOOR", UNLOCKED_DOOR);
+        map.put("SAND", SAND);
+        map.put("MOUNTAIN", MOUNTAIN);
+        map.put("TREE", TREE);
+        map.put("ENEMY", ENEMY);
+        map.put("KEY", KEY);
+        map.put(":", COLON);
+        map.put(" ", SPACE);
+        map.put("(", LEFT_BRACE);
+        map.put(")", RIGHT_BRACE);
+    }
+
+    // return TETile according to its description
+    public static TETile get(String s) {
+        return map.getOrDefault(s, NOTHING);
     }
 }
 

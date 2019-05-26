@@ -9,21 +9,42 @@ public class Enemy extends Role implements Runnable {
 
     private Player player; // enemy will chase the player
     private List<Direction> path = new ArrayList<>(); // a series of actions to reach the player
+    private boolean running = true;
+    private boolean paused = false;
 
+    public Enemy() {
+        super();
+    }
     public Enemy(TETile[][] world, int x, int y, TETile image, Player player) {
         super(world, x, y, image);
         this.player = player;
+    }
+    public void pause() {
+        paused = true;
+    }
+    public void stop() {
+        running = false;
     }
 
     @Override
     public void run() {
 
-        updatePath();
+        running = true;
+        paused = false;
         long initialTime = System.nanoTime();
         int ticks = 0;
 
-        while (true) {
-
+        while (running) {
+            if(paused) {
+                try {
+                    synchronized (this) {
+                        wait();
+                    }
+                    paused = false;
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
             long currentTime = System.nanoTime();
             if (currentTime - initialTime > 200000000) {
                 if (!path.isEmpty())
@@ -35,12 +56,13 @@ public class Enemy extends Role implements Runnable {
                 initialTime = currentTime;
             }
         }
+
     }
 
     private void updatePath() {
         if (player != null) {
             path = bfs();
-            System.out.println(path);
+            // System.out.println(path);
         }
     }
 
@@ -91,15 +113,15 @@ public class Enemy extends Role implements Runnable {
             for (Direction d : Direction.values()) {
                 int newX = nowState.x + X[d.getIndex()];
                 int newY = nowState.y + Y[d.getIndex()];
-                System.out.println(newX+" "+newY);
-                if (!visited[newX][newY] && world[newX][newY] != Tileset.WALL) {
+                if (!visited[newX][newY] &&
+                        (world[newX][newY] == Tileset.FLOOR || world[newX][newY] == player.image)) {
                     visited[newX][newY] = true;
                     State nextState = new State(newX, newY);
                     queue.add(nextState);
                     prevState.put(nextState, nowState);
                     prevAction.put(nextState, d);
                     if (nextState.equals(goalState)) {
-                        System.out.println("Solution appears-----");
+                        //System.out.println("Solution------");
                         State s = goalState;
                         while (!s.equals(startState)) {
                             solution.add(prevAction.get(s));

@@ -3,12 +3,15 @@ package labyrinth.Core;
 import labyrinth.TileEngine.TETile;
 import labyrinth.TileEngine.Tileset;
 
-public class Role {
+import java.io.Serializable;
+
+public class Role implements Serializable {
     TETile[][] world;
     int x;
     int y;
     TETile image;
 
+    public Role(){}
     public Role(TETile[][] world, int x, int y, TETile image) {
         this.world = world;
         this.x = x;
@@ -23,7 +26,6 @@ public class Role {
             case DOWN:  goDown();  break;
             case LEFT:  goLeft();  break;
             case RIGHT: goRight(); break;
-            default: return;
         }
     }
 
@@ -35,7 +37,6 @@ public class Role {
     }
 
     private void goDown() {
-
         if (world[x][y - 1] != Tileset.WALL) {
             world[x][y] = Tileset.FLOOR;
             world[x][--y] = image;
